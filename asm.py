@@ -26,10 +26,24 @@ ELFDATANONE     = b'\x00'
 ELFDATA2LSB     = b'\x01'
 ELFDATA2MSB     = b'\x02'
 
-EV_NONE         = b'\x00'
-EV_CURRENT      = b'\x01'
+EV_NONE         = 0
+EV_CURRENT      = 1
 
 PAD_VAL         = b'\x00'
+
+ET_NONE         = 0x0000
+ET_RET          = 0x0001
+ET_EXEC         = 0x0002
+ET_DYN          = 0x0003
+ET_CORE         = 0x0004
+ET_LOPROC       = 0xff00
+ET_HIPROC       = 0xffff
+
+EM_ARM          = 0x28  # up to ARMv7 (Raspberry Pi 3 Model B+ Rev 1.3)
+
+BIG_ENDIAN      = "big"
+LITTLE_ENDIAN   = "little"
+ENDIANESS       = LITTLE_ENDIAN
 
 class elf32:
     def __init__(self):
@@ -49,9 +63,11 @@ class elf32:
         self.h_shstrrndx   = [b'\xff']*ELF32_HALF
 
     def dump_h_ident(self):
+        print("Header Ident:")
         print(self.h_ident)
 
     def dump_h(self):
+        print("Header:")
         self.dump_h_ident()
         print(self.h_type)
         print(self.h_machine)
@@ -83,19 +99,24 @@ if __name__ == "__main__":
             print("invalid arguments")
     
     elf = elf32()
-
-    # build header ident
     elf.h_ident[EI_MAG0]    = b'\x7f'
     elf.h_ident[EI_MAG1]    = b'E'
     elf.h_ident[EI_MAG2]    = b'L'
     elf.h_ident[EI_MAG3]    = b'F'
     elf.h_ident[EI_CLASS]   = ELFCLASS32    # 32-bit objects
     elf.h_ident[EI_DATA]    = ELFDATA2LSB   # 2's complement, little endian
-    elf.h_ident[EI_VERSION] = EV_CURRENT
+    elf.h_ident[EI_VERSION] = EV_CURRENT.to_bytes(1, ENDIANESS)
     elf.h_ident[EI_VERSION + 1 : EI_NIDENT] = [PAD_VAL] * (EI_NIDENT - EI_VERSION - 1)
+    elf.h_type              = ET_RET.to_bytes(ELF32_HALF, ENDIANESS)
+    elf.h_machine           = EM_ARM.to_bytes(ELF32_HALF, ENDIANESS)
+    elf.h_version           = EV_CURRENT.to_bytes(ELF32_WORD, ENDIANESS)    # current version
+
+    elf.dump()
 
     f = open("out.o", "wb") # write binary mode
     for x in elf.h_ident:
-        print(x)
         f.write(x)
+    f.write(elf.h_type)
+    f.write(elf.h_machine)
+    f.write(elf.h_version)
     f.close()
